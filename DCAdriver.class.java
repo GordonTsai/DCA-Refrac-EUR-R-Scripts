@@ -46,6 +46,8 @@ public class DCAdriver
   private static int _nProductionMin = 5;
   private static final long SPAN = 1000L;
   
+
+  //Default Constructor
   public DCAdriver() {}
   
   @Deprecated
@@ -140,7 +142,11 @@ public class DCAdriver
     }
     createDriver(longDates, production, ioUnits);
   }
-  
+
+
+/*-------------------------------------------------------------------------------------------------------*/\
+
+//Called in DCAdriver constructor, saves values to variables?
   private void createDriver(long[] dates, double[] production, String ioUnits)
   {
     this._ioUnits = ioUnits;
@@ -500,7 +506,7 @@ public class DCAdriver
   public void model()
     throws IllegalArgumentException, IllegalStateException
   {
-    String errors = errorTest();
+    String errors = errorTest(); /*line 886 Checks if this._production is null/*/
     if (!errors.isEmpty())
     {
       System.out.println(errors);
@@ -509,7 +515,8 @@ public class DCAdriver
     try
     {
       this._modelFailure = null;
-      validStream(this._production);
+
+      validStream(this._production); /* Check if has more than 5 good production values and if more than 75 percent of values are negative*/
     }
     catch (IllegalStateException exp)
     {
@@ -519,7 +526,7 @@ public class DCAdriver
     DCAmodel bestModel = null;
     try
     {
-      bestModel = bestFit(this._production, false, this._transitionMonth);
+      bestModel = bestFit(this._production, false, this._transitionMonth); /* */
     }
     catch (IllegalStateException exp)
     {
@@ -545,11 +552,11 @@ public class DCAdriver
   {
     int nvalues = 0;
     for (int i = 0; i < this._production.length; i++) {
-      if ((!Double.isNaN(this._production[i])) && (this._production[i] > 0.0D)) {
+      if ((!Double.isNaN(this._production[i])) && (this._production[i] > 0.0D)) { /* Only counts values if >0 and not NaN*/
         nvalues++;
       }
     }
-    if (nvalues < _nProductionMin)
+    if (nvalues < _nProductionMin) /* minimum 5 points*/
     {
       String exception = this._wellName + " does not have sufficient number of valid production values.";
       throw new IllegalStateException(exception);
@@ -805,7 +812,7 @@ public class DCAdriver
     throws IllegalStateException
   {
     if (this._dcaModels == null) {
-      setModelTypes();
+      setModelTypes(); /* selects correct model type and creatse class var for that model type, then it sets low and high levels from instantaited class var.*/
     } else {
       resetModelTypes();
     }

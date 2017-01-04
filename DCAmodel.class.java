@@ -151,6 +151,7 @@ public abstract class DCAmodel
   public boolean getMinimizeRate()
   {
     return this._useProduction;
+    
   }
   
   public void setMinimizeCumulative(boolean state)
