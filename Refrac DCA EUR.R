@@ -165,6 +165,7 @@ getEUR <- function(DCAdriver)
 
 createDriver <- function(date,production,unit)     #Units for constructor are either "bbl" or "Mcf"
 {
+  DCAdriver = .jnew("com.drillinginfo.dca.DCAdriver",date,production,unit) #main (dates[S],values[D],units[L] )
   .jcall( DCAdriver, "V", "setModelTypes", modelList )
   return(DCAdriver)     
 }
