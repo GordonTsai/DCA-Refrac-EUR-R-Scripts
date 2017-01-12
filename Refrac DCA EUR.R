@@ -4,13 +4,15 @@ library("ggplot2")
 library("grid")
 library("gridExtra")
 library("dplyr")
-#{
-#  myConn <- odbcDriverConnect('driver={SQL Server};server=AUS2-CIS-DDB02V;trusted_connection=true')
-#  #input < sqlFetch(myConn, [esp_stage].[dbo].[RefracIncrementalInput]
-#  data <- sqlQuery(myConn,"Select * from [esp_stage].[dbo].[RefracIncrementalInput]")
-#  close(myConn)
-#}
 
+if(!exists("master_data")){
+{
+  myConn <- odbcDriverConnect('driver={SQL Server};server=AUS2-CIS-DDB02V;trusted_connection=true')
+  #input < sqlFetch(myConn, [esp_stage].[dbo].[RefracIncrementalInput]
+  master_data <- sqlQuery(myConn,"Select * from [esp_stage].[dbo].[RefracIncrementalInput]")
+  close(myConn)
+}
+}
 # Install JAVA
 ### http://www.java.com/en/download/manual.jsp
 ### if R is 64 bit then you need the 64 bit JAVA. By default, the download page gives a 32 bit version 
@@ -33,7 +35,7 @@ library("dplyr")
 #rm(list=ls())
 
 count = 0 
-input = data
+input = master_data
 
 forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
   input = input[order(input$api),]
@@ -163,7 +165,6 @@ getEUR <- function(DCAdriver)
 
 createDriver <- function(date,production,unit)     #Units for constructor are either "bbl" or "Mcf"
 {
-  DCAdriver <- .jnew("com.drillinginfo.dca.DCAdriver",date,production,unit) #main (dates[S],values[D],units[L] )
   .jcall( DCAdriver, "V", "setModelTypes", modelList )
   return(DCAdriver)     
 }
@@ -190,10 +191,10 @@ setModel <- function(modelType)
 #.jinit initializes the Java Virtual Machine (JVM). This function must be called before any rJava
 #functions can be used.
 .jinit()
-.jaddClassPath(dir( "C:/Users/gordon.tsai/Documents/DCA Model", full.names=TRUE ))
+.jaddClassPath(dir( "C:/Users/gordon.tsai/Documents/DCA Model/drillinginfoDCA", full.names=TRUE ))
 #jaddClassPath adds directories or JAR files to the class path.
 #.jclassPath returns a vector containg the current entries in the class path
-#print(.jclassPath())
+print(.jclassPath())
 
 #### Error 111111111 = less than points of production
 #### Error 333333333 = getEUR error probably one model() part from java
