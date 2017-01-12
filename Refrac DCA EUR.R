@@ -35,7 +35,7 @@ library("dplyr")
 count = 0 
 input = data
 
-forecastDCA <- function(input) {
+forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
   input = input[order(input$api),]
   api_list = unique(input$api)
   
@@ -44,179 +44,79 @@ forecastDCA <- function(input) {
   gasEUR = numeric(length(api_list))
   output = data.frame(api = api_list,'Oil EUR' = oilEUR, 'Gas EUR' = gasEUR)
   
-  api = 4212131438
-  i = match(api, api_list)
+  #api = 4212131438
+  #i = match(api, api_list)
   #i = 27
-#  for(i in 1:length(api_list)) {
-    count = count + 1
-    print(count)
-    well = subset(input, input$api == api_list[i])
-    date = well$productionDate
-    oilProduction = well$oilProduction
-    gasProduction = well$gasProduction
+for(i in 1:length(api_list)) {
+  count = count + 1
+  print(count)
+  well = subset(input, input$api == api_list[i])
+  date = well$productionDate
+  oilProduction = well$oilProduction
+  gasProduction = well$gasProduction
+  
+  ##########  Data Pull  ################### 
+  #date
+  #date = read.csv("DCA_date.csv", header = FALSE)
+  date <- data.matrix((date));date <- data.matrix(as.integer(date))
+  
+  #production 
+  #production = read.csv("DCA_production.csv", header = FALSE)
+  oilProduction <- data.matrix(oilProduction);oilProduction <- as.numeric(oilProduction)
+  gasProduction <- data.matrix(gasProduction);gasProduction <- as.numeric(gasProduction)
+  
+  gasDCAdriver = createDriver(date,gasProduction,gasunit); segmentation(gasDCAdriver, gassegment[1]==1,as.double(gassegment[2]))
+  oilDCAdriver = createDriver(date,oilProduction,oilunit); segmentation(oilDCAdriver, oilsegment[1]==1,as.double(oilsegment[2]))
+  
+  if(length(well$api)<5)
+  {
+    oilDCAeur = 111111111
+    gasDCAeur = 111111111
+    output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
+    output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
     
-    ##########  Data Pull  ################### 
-    #date
-    #date = read.csv("DCA_date.csv", header = FALSE)
-    date <- data.matrix((date));date <- data.matrix(as.integer(date))
     
-    #production 
-    #production = read.csv("DCA_production.csv", header = FALSE)
-    oilProduction <- data.matrix(oilProduction);oilProduction <- as.numeric(oilProduction)
-    gasProduction <- data.matrix(gasProduction);gasProduction <- as.numeric(gasProduction)
+  } else if(length(oilProduction[oilProduction != 0])<5 || length(oilProduction[oilProduction == 0]/length(oilProduction) < .25)) {
     
-    #Units for constructor are either "bbl" or "Mcf"
-    oilunit <- 'bbl'
-    gasunit <- 'Mcf'
+    oilDCAeur = 2222222222
+    output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
     
-    ## Essentially JNI interface
-    #.jinit initializes the Java Virtual Machine (JVM). This function must be called before any rJava
-    #functions can be used.
-    .jinit()
-    .jaddClassPath(dir( "C:/Users/gordon.tsai/Documents/DCA Model", full.names=TRUE ))
-    #jaddClassPath adds directories or JAR files to the class path.
-    #.jclassPath returns a vector containg the current entries in the class path
-    #print(.jclassPath())
+    gasDCAeur = getEUR(gasDCAdriver)
     
-    modelList <- new( J("java.util.ArrayList") )
-    #new class Arraylist 
-    #Creates a Java class reference or calls a Java method
-    # J(class, method, ...)
-    J( modelList, "add", "Arps")
+    ###################################################################################################print(J(gasDCAdriver, "getTransitionMonth"))
     
-    if(length(well$api)<5)
-    {
-      oilDCAeur = 111111111
-      gasDCAeur = 111111111
-      output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-      output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-      
     
-    } else if(length(oilProduction[oilProduction != 0])<5 || length(oilProduction[oilProduction == 0]/length(oilProduction) < .25)) {
-      
-      oilDCAeur = 2222222222
-      output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-      
-      gasDCAdriver <- .jnew("com.drillinginfo.dca.DCAdriver",date,gasProduction,gasunit) #main (dates[S],values[D],units[L] )
-      .jcall( gasDCAdriver, "V", "setModelTypes", modelList )
-      J( gasDCAdriver , "setSegmentation", TRUE, 5.0)
-      #J( gasDCAdriver, "getModelTypes")
-      tryCatch({J( gasDCAdriver, "model")
-      #.jcall( gasDCAdriver, "S", "getReport")
-      gasDCAeur <- J( gasDCAdriver, "getEUR")
-      #gasPrediction <- .jcall( gasDCAdriver, "[D", "getPrediction")
-      #gasProduction <- .jcall(gasDCAdriver, "[D", "getProduction") 
-      
-      output$Gas.EUR[output$api == api_list[i]] = gasDCAeur}, warning = function(w) {
-        gasDCAeur = 3333333333
-        return(gasDCAeur)
-      }, error = function(e) {
-        gasDCAeur = 3333333333
-        return(gasDCAeur)
-      }, finally = {
-        
-      })
-      print(J(gasDCAdriver, "getTransitionMonth"))
-      
-      
-    } else if(length(gasProduction[gasProduction != 0])<5) {
+  } else if(length(gasProduction[gasProduction != 0])<5 || length(gasProduction[oilProduction==0]/length (oilProduction<.25))) {
     
-      gasDCAeur = 2222222222
-      output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-      
-      oilDCAdriver <- .jnew("com.drillinginfo.dca.DCAdriver",date,oilProduction,oilunit) #main (dates[S],values[D],units[L] )
-      .jcall( oilDCAdriver, "V", "setModelTypes", modelList )
-      J( oilDCAdriver , "setSegmentation", TRUE, 5.0)
-      J( oilDCAdriver, "getModelTypes")
-      
-      tryCatch({
-      J( oilDCAdriver, "model")
-      .jcall( oilDCAdriver, "S", "getReport")
-      oilDCAeur <- J( oilDCAdriver, "getEUR")
-      #oilPrediction <- .jcall( oilDCAdriver, "[D","getPrediction")
-      #oilProduction <- .jcall(oilDCAdriver, "[D", "getProduction") 
-      output$Oil.EUR[output$api == api_list[i]] = oilDCAeur}, warning = function(w) {
-        oilDCAeur = 3333333333
-        return(oilDCAeur)
-      }, error = function(e) {
-        oilDCAeur = 3333333333
-        return(oilDCAeur)
-      }, finally = {
-        
-      })
-      print(J(oilDCAdriver, "getTransitionMonth"))
-      
-        
-    } else {  
-      oilDCAdriver <- .jnew("com.drillinginfo.dca.DCAdriver",date,oilProduction,oilunit) #main (dates[S],values[D],units[L] )
-      .jcall( oilDCAdriver, "V", "setModelTypes", modelList )
-      J( oilDCAdriver , "setSegmentation", TRUE, 5.0)
-      J( oilDCAdriver, "getModelTypes")
-      tryCatch({J( oilDCAdriver, "model")
-      .jcall( oilDCAdriver, "S", "getReport")
-      oilDCAeur <- J( oilDCAdriver, "getEUR")
-      #oilDCAfit <- J( oilDCAdriver, "getFitCC")
-      #oilDCAmodel <- J( oilDCAdriver, "getLastSegmentModel")
-      #oilDCAtype <- J( oilDCAmodel, "getType" )
-      #oilParms <- J( oilDCAmodel, "getModel" )
-      #oilModels <- J( oilDCAdriver, "getModel")
-      #oilPrediction <- .jcall( oilDCAdriver, "[D","getPrediction")
-      #.jcall(oilDCAdriver, "S", "getLastSegmentModelType" )
-      #.jinstanceof(oilDCAdriver,"com.drillinginfo.dca.DCAdriver")
-      #oilProduction <- .jcall(oilDCAdriver, "[D", "getProduction") 
-      #.jcall(oilDCAdriver, "S", "getIOunits")
-      #.jcall(oilDCAdriver, "[J", "getMonths") 
-      },warning = function(w) {
-        oilDCAeur = 3333333333
-        return(oilDCAeur)
-      }, error = function(e) {
-        oilDCAeur = 3333333333
-        return(oilDCAeur)
-      }, finally = {
-      })
-      
-        
-      gasDCAdriver <- .jnew("com.drillinginfo.dca.DCAdriver",date,gasProduction,gasunit) #main (dates[S],values[D],units[L] )
-      .jcall( gasDCAdriver, "V", "setModelTypes", modelList )
-      J( gasDCAdriver , "setSegmentation", TRUE, 5.0)
-      J( gasDCAdriver, "getModelTypes")
-      tryCatch({
-      J( gasDCAdriver, "model")
-      .jcall( gasDCAdriver, "S", "getReport")
-      gasDCAeur <- J( gasDCAdriver, "getEUR")
-      #gasDCAfit <- J( gasDCAdriver, "getFitCC")
-      #gasDCAmodel <- J( gasDCAdriver, "getLastSegmentModel")
-      #gasDCAtype <- J( gasDCAmodel, "getType" )
-      #gasParms <- J( gasDCAmodel, "getModel" )
-      #gasModels <- J( gasDCAdriver, "getModel")
-      #gasPrediction <- .jcall( gasDCAdriver, "[D", "getPrediction")
-      #.jcall(gasDCAdriver, "S", "getLastSegmentModelType" )
-      #.jinstanceof(gasDCAdriver,"com.drillinginfo.dca.DCAdriver")
-      #gasProduction <- .jcall(gasDCAdriver, "[D", "getProduction") 
-      #.jcall(gasDCAdriver, "S", "getIOunits")
-      #.jcall(gasDCAdriver, "[J", "getMonths") 
-      },warning = function(w) {
-        gasDCAeur = 3333333333
-        return(gasDCAeur)
-      }, error = function(e) {
-        gasDCAeur = 3333333333
-        return(gasDCAeur)
-      }, finally = {
-      })
-      
-      output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-      output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-      print(J(oilDCAdriver, "getTransitionMonth"))
-      print(J(gasDCAdriver, "getTransitionMonth"))
-      
+    gasDCAeur = 2222222222
+    output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
+    
+    oilDCAeur = getEUR(oilDCAdriver)
+    
+    #print(J(oilDCAdriver, "getTransitionMonth"))
+    
+    
+  } else {  
+    
+    oilDCAeur = getEUR(oilDCAdriver)
+    gasDCAeur = getEUR(gasDCAdriver)
+    
+    output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
+    output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
+    
+    
+    #print(J(oilDCAdriver, "getTransitionMonth"))
+    #print(J(gasDCAdriver, "getTransitionMonth"))
+    
     }
-#  }
-  return(output)
+  }
+  newList = c(output,oilDCAdriver,gasDCAdriver)
+  return(newList)
 }
 
 
 
-plotForecast <- function(oilDriverDCA, gasDriverDCA) {
+plotForecast <- function(oilDCAdriver, gasDCAdriver) {
   
   ###########Plotting
   xaxisOil <- matrix(c(1:length(oilProduction)), nrow=length(oilProduction), ncol=1) ; print(length(oilProduction)); print(length(oilPrediction))
@@ -240,7 +140,69 @@ plotForecast <- function(oilDriverDCA, gasDriverDCA) {
 }
 
 
-output_total = forecastDCA(input)
+getEUR <- function(DCAdriver)
+  #new class Arraylist 
+  #Creates a Java class reference or calls a Java method
+  # J(class, method, ...)
+  #J( gasDCAdriver, "getModelTypes")
+  tryCatch({J( DCAdriver, "model")
+    #.jcall( gasDCAdriver, "S", "getReport")
+    DCAeur <- J( DCAdriver, "getEUR")
+    #gasPrediction <- .jcall( gasDCAdriver, "[D", "getPrediction")
+    #gasProduction <- .jcall(gasDCAdriver, "[D", "getProduction") 
+    return(DCAeur)
+  },warning = function(w) {
+    DCAeur = 3333333333  ### EUR error
+    return(DCAeur)
+  }, error = function(e) {
+    DCAeur = 3333333333
+    return(DCAeur)
+  }, finally = {
+    
+  })
+
+createDriver <- function(date,production,unit)     #Units for constructor are either "bbl" or "Mcf"
+{
+  DCAdriver <- .jnew("com.drillinginfo.dca.DCAdriver",date,production,unit) #main (dates[S],values[D],units[L] )
+  .jcall( DCAdriver, "V", "setModelTypes", modelList )
+  return(DCAdriver)     
+}
+
+segmentation <- function(DCAdriver, boolean, threshold) #integer value typically b/w 2-5
+{
+  J( DCAdriver , "setSegmentation", boolean ,threshold)
+}
+
+
+setModel <- function(modelType)
+{
+  modelList = new(J("java.util.ArrayList"))
+  J( modelList, "add", modelType)
+  return(modelList)
+}
+
+
+
+
+#######################Script for DCA
+
+## Essentially JNI interface
+#.jinit initializes the Java Virtual Machine (JVM). This function must be called before any rJava
+#functions can be used.
+.jinit()
+.jaddClassPath(dir( "C:/Users/gordon.tsai/Documents/DCA Model", full.names=TRUE ))
+#jaddClassPath adds directories or JAR files to the class path.
+#.jclassPath returns a vector containg the current entries in the class path
+#print(.jclassPath())
+
+#### Error 111111111 = less than points of production
+#### Error 333333333 = getEUR error probably one model() part from java
+
+modelList = setModel("Arps")
+oilsegmentation = c(TRUE, 5.0)
+gassegmentation = c(TRUE, 5.0)
+
+output_total = forecastDCA(input,"bbl","Mcf", oilsegmentation,gassegmentation)
 
 #input_reduced = subset(input, input$Time2Refrac > 4)
 #refracAPI = unique(input_reduced$api)
