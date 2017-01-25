@@ -270,19 +270,6 @@ getCumulativePrediction <- function(DCAdriver, months)
   .jcall(DCAdriver,"[D", "getCumulativePrediction", as.integer(months))
 }
 
-getDCAValues <- function(string,x)
-{
-  regularexpression = ": [+]?[0-9]*[.]?[0-9]+([eE][-+]?[0-9]+)?"
-  output = c()
-  for(i in 1:length(x))
-  {
-    pattern = paste(x[i],regularexpression,sep = "")
-    qiString = unlist(str_extract_all(string,pattern))
-    value= as.numeric(str_sub(qiString[length(qiString)],start = 3+nchar(x[i])))
-    output[i] = value
-  }
-  return(output)
-}
 
 #setForecast <- function(years)
 #{

@@ -1,3 +1,5 @@
+
+```{r }
 library("RODBC")
 library("rJava")
 library("ggplot2")
@@ -270,19 +272,6 @@ getCumulativePrediction <- function(DCAdriver, months)
   .jcall(DCAdriver,"[D", "getCumulativePrediction", as.integer(months))
 }
 
-getDCAValues <- function(string,x)
-{
-  regularexpression = ": [+]?[0-9]*[.]?[0-9]+([eE][-+]?[0-9]+)?"
-  output = c()
-  for(i in 1:length(x))
-  {
-    pattern = paste(x[i],regularexpression,sep = "")
-    qiString = unlist(str_extract_all(string,pattern))
-    value= as.numeric(str_sub(qiString[length(qiString)],start = 3+nchar(x[i])))
-    output[i] = value
-  }
-  return(output)
-}
 
 #setForecast <- function(years)
 #{
@@ -336,4 +325,11 @@ names(output_prerefrac) = c("api", "Pre-Refrac Oil EUR", "Pre-Refrac Gas EUR")
 output = merge(output_total,output_prerefrac, by = "api")
 
 write.csv(output, "C:/Users/gordon.tsai/Documents/DCA Model/output.csv", row.names = FALSE) 
+```
 
+
+---
+title: "Refrac_DCA_EUR_Cumulatives.R"
+author: "gordon.tsai"
+date: "Wed Jan 25 21:16:23 2017"
+---
