@@ -5,33 +5,36 @@ library("grid")
 library("gridExtra")
 library("dplyr")
 library("lubridate")
+library("stringr")
 
 if(!exists("master_data")){
   {
-    myConn <- odbcDriverConnect('driver={SQL Server};server=AUS2-CIS-DDB02V;trusted_connection=true')
+    myConn <- odbcDriverConnect('driver={SQL Server};server=AUS2-CIS-DDB02V;trusHted_connection=true')
     #input < sqlFetch(myConn, [esp_stage].[dbo].[RefracIncrementalInput]
     master_data <- sqlQuery(myConn,"SELECT h.API_NO
-                            ,h.COUNTY
+      ,h.COUNTY
                             ,h.[ENTITY_ID]
-                            ,[PROD_DATE]
+                            ,[PROD_DATE]H
                             ,[LIQ]
                             ,[GAS]
                             ,[WTR]
                             FROM [esp_data].[dbo].[Pden_Desc] h
-                            Left JOIN [esp_data].[dbo].[Pden_Prod] p ON h.ENTITY_ID = P.ENTITY_ID
-                            WHERE H.COUNTY = 'MIDLAND (TX)' And PROD_DATE >= '2005-01-01'")
+     
+                       Left JOIN [esp_data].[dbo].[Pden_Prod] p ON h.ENTITY_ID = P.ENTITY_ID
+                            
+                            WHERE H.COUNTY IN ('ANDREWS (TX)','CRANE (TX)','CROCKETT (TX)','ECTOR (TX)','GAINES (TX)','PECOS (TX)','UPTON (TX)','WARD (TX)','WINKLER (TX)','BORDEN (TX)','COKE (TX)','CONCHO (TX)','CROSBY (TX)','DICKENS (TX)','FISHER (TX)','FLOYD (TX)','GARZA (TX)','GLASSCOCK (TX)','HALE (TX)','HOWARD (TX)','IRION (TX)','KENT (TX)','KIMBLE (TX)','LUBBOCK (TX)','MENARD (TX)','MITCHELL (TX)','MOTLEY (TX)','NOLAN (TX)','SCHLEICHER (TX)','SCURRY (TX)','STERLING (TX)','STONEWALL (TX)','SUTTON (TX)','TOM GREEN (TX)','ANDREWS (TX)','BORDEN (TX)','CRANE (TX)','CROCKETT (TX)','DAWSON (TX)','ECTOR (TX)','GAINES (TX)','GARZA (TX)','GLASSCOCK (TX)','HOCKLEY (TX)','HOWARD (TX)','IRION (TX)','LUBBOCK (TX)','LYNN (TX)','MARTIN (TX)','MIDLAND (TX)','REAGAN (TX)','SCHLEICHER (TX)','SCURRY (TX)','STERLING (TX)','TERRY (TX)','TOM GREEN (TX)','UPTON (TX)','YOAKUM (TX)')  And h.FIRST_PROD_DATETIME >= '2005-01-01'")
     close(myConn)
   }
 }
 
-if(!exists("original_data")){
-  {
-    myConn <- odbcDriverConnect('driver={SQL Server};server=AUS2-CIS-DDB02V;trusted_connection=true')
-    #input < sqlFetch(myConn, [esp_stage].[dbo].[RefracIncrementalInput]
-    original_data <- sqlQuery(myConn,"Select * from [esp_stage].[dbo].[RefracIncrementalInput]")
-    close(myConn)
-  }
-}
+#if(!exists("original_data")){
+#  {
+#    myConn <- odbcDriverConnect('driver={SQL Server};server=AUS2-CIS-DDB02V;trusted_connection=true')
+#    #input < sqlFetch(myConn, [esp_stage].[dbo].[RefracIncrementalInput]
+#    original_data <- sqlQuery(myConn,"Select * from [es_pstage].[dbo].[RefracIncrementalInput]")
+#    close(myConn)
+#  }
+#}
 
 
 # Install JAVA
@@ -59,18 +62,30 @@ count = 0
 input = master_data
 
 
- forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
+forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
   #input = input[order(input$ENTITY_ID),]
   api_list = unique(input$ENTITY_ID)
-   
+  
+  options(digits = 19) 
   #Create columns for the output vector
   oilEUR = numeric(length(api_list))
   gasEUR = numeric(length(api_list))
-  #oilCum3Months= numeric(length(api_list))
-  #gasCum3Months= numeric(length(api_list))
-  #oilCum6Months = numeric(length(api_list))  
-  #gasCum6Months = numeric(length(api_list))
-  output = data.frame('Entity ID' = api_list,'Oil EUR' = oilEUR, 'Gas EUR' = gasEUR)
+  oilQi= numeric(length(api_list))
+  oilDi= numeric(length(api_list))
+  oilB = numeric(length(api_list))  
+  gasQi= numeric(length(api_list))
+  gasDi= numeric(length(api_list))
+  gasB = numeric(length(api_list))
+  oilQi = as.numeric(oilQi)
+  oilDi= as.numeric(oilDi)
+  oilB = as.numeric(oilB)
+  gasQi = as.numeric(gasQi)
+  gasDi= as.numeric(gasDi)
+  gasB = as.numeric(gasB)
+  
+  
+  output = data.frame('Entity ID' = api_list,'Oil Date' = oilEUR, 'Gas Date' = gasEUR, "Oil Qi" = oilQi, "Oil Di" = oilDi, "Oil B" = oilB, "Gas Qi"= gasQi, "Gas Di" = gasDi, "Gas B" = gasB)
+  
   # 'Oil Cum. 3M' = oilCum3Months, 'Gas Cum. 3M' = oilCum6Months, 'Oil Cum. 6M' = oilCum6Months, 'Gas Cum. 6M' = gasCum6Months)
   
   #api = 4212131438
@@ -80,8 +95,8 @@ input = master_data
     count = count + 1
     print(count)
     well = subset(input, input$ENTITY_ID == api_list[i])
-    well= well[order(well$PROD_DATE),]
-    date = well$PROD_DATE
+    well= well[order(well$H),]
+    date = well$H
     oilProduction = well$LIQ
     gasProduction = well$GAS
     #View(well)
@@ -100,17 +115,22 @@ input = master_data
     {
       oilDCAeur = 111111111
       gasDCAeur = 111111111
-      #oilCum3Months = 111111111
-      #gasCum3Months = 111111111
-      #oilCum6Months = 111111111
-      #gasCum6Months = 111111111
+      oilQi= 111111111
+      oilDi= 111111111
+      oilB = 111111111  
+      gasQi= 111111111
+      gasDi= 111111111
+      gasB = 111111111  
       
-      output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-      output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-      #output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
-      #output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
-      #output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
-      #output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
+      output$Oil.Date[output$Entity.ID == api_list[i]] = oilDCAeur
+      output$Gas.Date[output$Entity.ID == api_list[i]] = gasDCAeur
+      output$Oil.Qi[output$Entity.ID == api_list[i]] = oilQi  
+      output$Oil.Di[output$Entity.ID == api_list[i]] = oilDi
+      output$Oil.B[output$Entity.ID == api_list[i]] = oilB
+      output$Gas.Qi[output$Entity.ID == api_list[i]] = gasQi
+      output$Gas.Di[output$Entity.ID == api_list[i]] = gasDi
+      output$Gas.B[output$Entity.ID == api_list[i]] = gasB
+      
       
     } else  {
       gasDCAdriver = createDriver(date,gasProduction,gasunit); segmentation(gasDCAdriver, TRUE,3.0)
@@ -120,21 +140,32 @@ input = master_data
     if(length(oilProduction[oilProduction != 0])<5 || length(oilProduction[oilProduction == 0]/length(oilProduction) < .25)) {
       
       oilDCAeur = 2222222222
-      #oilCum3Months = 2222222222
-      #oilCum6Months = 2222222222     
+      oilQi= 2222222222
+      oilDi= 2222222222
+      oilB = 2222222222  
       
       model(gasDCAdriver)
-      gasDCAeur = getSegmentStartDates(gasDCAdriver)
-      gasDCAeur = tail(as.Date(as.POSIXct(gasDCAeur/1000, origin = "1970-01-01",tz = "GMT"), "%B %d %Y"),n = 1)
-      #gasCum3Months = tail(getCumulativePrediction(gasDCAdriver, length(getCumPrediction(gasDCAdriver))+3), n = 1)
-      #gasCum6Months = tail(getCumulativePrediction(gasDCAdriver, length(getCumPrediction(gasDCAdriver))+6), n = 1)
-      
-      output$Oil.EUR[output$Entity.ID == api_list[i]] = as.character(oilDCAeur)
-      output$Gas.EUR[output$Entity.ID == api_list[i]] = as.character(gasDCAeur)
-      #output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
-      #output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
-      #output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
-      #output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
+      gasreport = getReport(gasDCAdriver)
+      if (!(gasreport == ""))
+      {
+        gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
+        gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3]
+        gasDCAeur = getSegmentStartDates(gasDCAdriver)
+        gasDCAeur = tail(as.Date(as.POSIXct(gasDCAeur/1000, origin = "1970-01-01",tz = "GMT"), "%B %d %Y"),n = 1)
+      } else {
+        gasDCAeur = 2222222222
+        gasQi= 2222222222
+        gasDi= 2222222222
+        gasB = 2222222222     
+      }
+      output$Oil.Date[output$Entity.ID == api_list[i]] = as.character(oilDCAeur)
+      output$Gas.Date[output$Entity.ID == api_list[i]] = as.character(gasDCAeur)
+      output$Oil.Qi[output$Entity.ID == api_list[i]] = oilQi  
+      output$Oil.Di[output$Entity.ID == api_list[i]] = oilDi
+      output$Oil.B[output$Entity.ID == api_list[i]] = oilB
+      output$Gas.Qi[output$Entity.ID == api_list[i]] = gasQi
+      output$Gas.Di[output$Entity.ID == api_list[i]] = gasDi
+      output$Gas.B[output$Entity.ID == api_list[i]] = gasB
       
       ###################################################################################################print(J(gasDCAdriver, "getTransitionMonth"))
       
@@ -142,37 +173,75 @@ input = master_data
     } else if(length(gasProduction[gasProduction != 0])<5 || length(gasProduction[oilProduction==0]/length (oilProduction<.25))) {
       
       gasDCAeur = 2222222222
-      #gasCum3Months = 2222222222
-      #gasCum6Months = 2222222222
+      gasQi= 2222222222
+      gasDi= 2222222222
+      gasB = 2222222222  
       
       model(oilDCAdriver)
-      oilDCAeur = getSegmentStartDates(oilDCAdriver)
-      oilDCAeur = tail(as.Date(as.POSIXct(oilDCAeur/1000, origin = "1970-01-01",tz = "GMT"), "%B %d %Y"),n =1 )
-      #oilCum3Months = tail(getCumulativePrediction(oilDCAdriver, length(getCumPrediction(oilDCAdriver))+3), n = 1)
-      #oilCum6Months = tail(getCumulativePrediction(oilDCAdriver, length(getCumPrediction(oilDCAdriver))+6), n = 1)
+      oilreport = getReport(oilDCAdriver)
       
-      output$Oil.EUR[output$Entity.ID == api_list[i]] = as.character(oilDCAeur)
-      output$Gas.EUR[output$Entity.ID == api_list[i]] = as.character(gasDCAeur)
-      #output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
-      #output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
-      #output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
-      #output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
+      if (!(oilreport == ""))
+      {
+        oildcaParams = getDCAValues(oilreport, c("Qi","Di","b"))
+        oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3]
+        oilDCAeur = getSegmentStartDates(oilDCAdriver)
+        oilDCAeur = tail(as.Date(as.POSIXct(oilDCAeur/1000, origin = "1970-01-01",tz = "GMT"), "%B %d %Y"),n =1 )
+      } else {
+        oilDCAeur = 2222222222
+        oilQi= 2222222222
+        oilDi= 2222222222
+        oilB = 2222222222  
+      }
+      output$Oil.Date[output$Entity.ID == api_list[i]] = as.character(oilDCAeur)
+      output$Gas.Date[output$Entity.ID == api_list[i]] = as.character(gasDCAeur)
+      output$Oil.Qi[output$Entity.ID == api_list[i]] = oilQi  
+      output$Oil.Di[output$Entity.ID == api_list[i]] = oilDi
+      output$Oil.B[output$Entity.ID == api_list[i]] = oilB
+      output$Gas.Qi[output$Entity.ID == api_list[i]] = gasQi
+      output$Gas.Di[output$Entity.ID == api_list[i]] = gasDi
+      output$Gas.B[output$Entity.ID == api_list[i]] = gasB
       
     } else {  
       
-      model(gasDCAdriver)
       model(oilDCAdriver)
-      oilDCAeur = getSegmentStartDates(oilDCAdriver)
-      gasDCAeur = getSegmentStartDates(gasDCAdriver)      
-      oilDCAeur = tail(as.Date(as.POSIXct(oilDCAeur/1000, origin = "1970-01-01",tz = "GMT"), "%B %d %Y"),n = 1)
-      gasDCAeur = tail(as.Date(as.POSIXct(gasDCAeur/1000, origin = "1970-01-01",tz = "GMT"), "%B %d %Y"),n = 1)
-      #oilCum3Months = tail(getCumulativePrediction(oilDCAdriver, length(getCumPrediction(oilDCAdriver))+3), n = 1)
-      #oilCum6Months = tail(getCumulativePrediction(oilDCAdriver, length(getCumPrediction(oilDCAdriver))+6), n = 1)
-      #gasCum3Months = tail(getCumulativePrediction(gasDCAdriver, length(getCumPrediction(gasDCAdriver))+3), n = 1)
-      #gasCum6Months = tail(getCumulativePrediction(gasDCAdriver, length(getCumPrediction(gasDCAdriver))+6), n = 1)
+      oilreport = getReport(oilDCAdriver)
+      if (!(oilreport == ""))
+      {
+        oildcaParams = getDCAValues(oilreport, c("Qi","Di","b"))
+        oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3]
+        oilDCAeur = getSegmentStartDates(oilDCAdriver)
+        oilDCAeur = tail(as.Date(as.POSIXct(oilDCAeur/1000, origin = "1970-01-01",tz = "GMT"), "%B %d %Y"),n =1 )
+      } else {
+        oilDCAeur = 2222222222
+        oilQi= 2222222222
+        oilDi= 2222222222
+        oilB = 2222222222  
+      }
       
-      output$Oil.EUR[output$Entity.ID == api_list[i]] = as.character(oilDCAeur)
-      output$Gas.EUR[output$Entity.ID == api_list[i]] = as.character(gasDCAeur)
+      model(gasDCAdriver)
+      gasreport = getReport(gasDCAdriver)
+      
+      if (!(gasreport == ""))
+      {
+        gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
+        gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3]
+        gasDCAeur = getSegmentStartDates(gasDCAdriver)
+        gasDCAeur = tail(as.Date(as.POSIXct(gasDCAeur/1000, origin = "1970-01-01",tz = "GMT"), "%B %d %Y"),n = 1)
+      } else {
+        gasDCAeur = 2222222222
+        gasQi= 2222222222
+        gasDi= 2222222222
+        gasB = 2222222222     
+      }
+      
+      output$Oil.Qi[output$Entity.ID == api_list[i]] = oilQi  
+      output$Oil.Di[output$Entity.ID == api_list[i]] = oilDi
+      output$Oil.B[output$Entity.ID == api_list[i]] = oilB
+      output$Gas.Qi[output$Entity.ID == api_list[i]] = gasQi
+      output$Gas.Di[output$Entity.ID == api_list[i]] = gasDi
+      output$Gas.B[output$Entity.ID == api_list[i]] = gasB
+      output$Oil.Date[output$Entity.ID == api_list[i]] = as.character(oilDCAeur)
+      output$Gas.Date[output$Entity.ID == api_list[i]] = as.character(gasDCAeur)
       #output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
       #output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
       #output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
@@ -249,6 +318,21 @@ model<- function(DCAdriver)
   
 })
 }
+
+getDCAValues <- function(string,x)
+{
+  regularexpression = ": [+]?[0-9]*[.]?[0-9]+([eE][-+]?[0-9]+)?"
+  output = c()
+  for(i in 1:length(x))
+  {
+    pattern = paste(x[i],regularexpression,sep = "")
+    qiString = unlist(str_extract_all(string,pattern))
+    value= as.numeric(str_sub(qiString[length(qiString)],start = 3+nchar(x[i])))
+    output[i] = value
+  }
+  return(output)
+}
+
 createDriver <- function(date,production,unit)     #Units for constructor are either "bbl" or "Mcf"
 {
   driver <- .jnew("com.drillinginfo.dca.DCAdriver",date,production,unit) #main (dates[S],values[D],units[L] )
@@ -346,6 +430,7 @@ getReport <- function(DCAdriver)
 #jaddClassPath adds directories or JAR files to the class path.
 #.jclassPath returns a vector containg the current entries in the class path
 print(.jclassPath())
+options(digits = 19)
 #.jinit(classpath = .jclassPath())
 
 
@@ -357,6 +442,6 @@ modelYears = 35.0
 
 output_total = forecastDCA(input,"bbl","Mcf", oilsegmentation,gassegmentation)
 
-names(output_total) = c("Entity ID", "Oil Segment Date", "Gas Segment Date")
+names(output_total) = c("Entity ID", "Oil Segment Date", "Gas Segment Date","Oil Qi","Oil Di","Oil B","Gas Qi","Gas Di","Gas B")
 write.csv(output_total, "B:/Projects/RJAVA/segmentationoutput.csv", row.names = FALSE) 
 
