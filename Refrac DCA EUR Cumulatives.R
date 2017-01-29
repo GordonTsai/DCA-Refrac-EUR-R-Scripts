@@ -4,6 +4,9 @@ library("ggplot2")
 library("grid")
 library("gridExtra")
 library("dplyr")
+library("stringr")
+library("aRpsDCA")
+library("stringdist")
 
 if(!exists("master_data")){
   {
@@ -13,6 +16,31 @@ if(!exists("master_data")){
     close(myConn)
   }
 }
+
+count = 0 
+input = master_data
+
+if(!exists("o")){
+  { 
+  input_reduced = subset(input, input$Time2Refrac > 2)
+  refracAPI = unique(input_reduced$api)
+  o = data.frame()
+  count = 0 
+  for(i in 1:length(refracAPI)) {
+    count = count+1 ; print(count)
+    c = filter(input_reduced, api == refracAPI[i]) 
+    c = filter(c, Time2Refrac == min(Time2Refrac))
+    c = filter(c, RefraccompletionDate == min(RefraccompletionDate))
+    c = filter(c, ProductionMonth <= Time2Refrac[1]) 
+    
+    o = rbind(o,c)
+    }
+  }
+}
+
+count = 0 
+
+
 # Install JAVA
 ### http://www.java.com/en/download/manual.jsp
 ### if R is 64 bit then you need the 64 bit JAVA. By default, the download page gives a 32 bit version 
@@ -33,9 +61,6 @@ if(!exists("master_data")){
 #add JAVA to PATH under comperuter properties
 #R.Version()# 64 or 32 Progam Files refers to 64
 #rm(list=ls())
-
-count = 0 
-input = master_data
 
 forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
   input = input[order(input$api),]
@@ -60,15 +85,8 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
     date = well$productionDate
     oilProduction = well$oilProduction
     gasProduction = well$gasProduction
-    #View(well)
     
-    ##########  Data Pull  ################### 
-    #date
-    #date = read.csv("DCA_date.csv", header = FALSE)
     date <- data.matrix((date));date <- data.matrix(as.integer(date))
-    
-    #production 
-    #production = read.csv("DCA_production.csv", header = FALSE)
     oilProduction <- data.matrix(oilProduction);oilProduction <- as.numeric(oilProduction)
     gasProduction <- data.matrix(gasProduction);gasProduction <- as.numeric(gasProduction)
     
@@ -90,18 +108,27 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       
     } else  {
       gasDCAdriver = createDriver(date,gasProduction,gasunit); segmentation(gasDCAdriver, TRUE,3.0)
+      #setMinimumProduction(gasDCAdriver, 0.0)
       oilDCAdriver = createDriver(date,oilProduction,oilunit); segmentation(oilDCAdriver, TRUE,3.0)
-    }
+      #setMinimumProduction(oilDCAdriver, 0.0)
+    
     
     if(length(oilProduction[oilProduction != 0])<5 || length(oilProduction[oilProduction == 0]/length(oilProduction) < .25)) {
       
       oilDCAeur = 2222222222
       oilCum3Months = 2222222222
       oilCum6Months = 2222222222     
-      
+    
       gasDCAeur = getEUR(gasDCAdriver,"First",modelYears)
-      gasCum3Months = tail(getCumulativePrediction(gasDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      gasCum6Months = tail(getCumulativePrediction(gasDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
+      gasreport = getReport(gasDCAdriver)
+      gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
+      gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3]; gasMonths = getDCAmonths(gasreport,"Number of months")
+      if(length(gasMonths) > 1){
+        lastsegmentstart = max(well$ProductionMonth)+1-amatch(gasQi,getPrediction(gasDCAdriver,max(well$ProductionMonth)+1))+1
+      } else {lastsegmentstart = max(well$ProductionMonth)+1 - which.max(gasProduction)+1}
+    
+      gasCum3Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:3)]) + well$PreRefracCumGas[1]
+      gasCum6Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:6)]) + well$PreRefracCumGas[1]
       
       output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
       output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
@@ -110,9 +137,6 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
       output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
       
-      ###################################################################################################print(J(gasDCAdriver, "getTransitionMonth"))
-      
-      
     } else if(length(gasProduction[gasProduction != 0])<5 || length(gasProduction[gasProduction==0]/length(gasProduction<.25))) {
       
       gasDCAeur = 2222222222
@@ -120,8 +144,15 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       gasCum6Months = 2222222222
       
       oilDCAeur = getEUR(oilDCAdriver, "First", modelYears)
-      oilCum3Months = tail(getCumulativePrediction(oilDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      oilCum6Months = tail(getCumulativePrediction(oilDCAdriver, max(well$ProductionMonth)+1+6), n = 1)
+      oilreport = getReport(oilDCAdriver)
+      oildcaParams = getDCAValues(oilreport, c("Qi","Di","b"))
+      oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3] ;oilMonths = getDCAmonths(oilreport,"Number of months")
+      if(length(oilMonths) > 1){
+        lastsegmentstart = max(well$ProductionMonth)+1-amatch(oilQi,getPrediction(oilDCAdriver,max(well$ProductionMonth)+1))+1
+      } else {lastsegmentstart = max(well$ProductionMonth)+1 - which.max(oilProduction)+1}
+      
+      oilCum3Months = sum(arps(oilQi,oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:3)]) + well$PreRefracCumOil[1]
+      oilCum6Months = sum(arps(oilQi,oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:6)]) + well$PreRefracCumOil[1]
       
       output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
       output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
@@ -133,11 +164,26 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
     } else {  
       
       oilDCAeur = getEUR(oilDCAdriver, "First", modelYears)
-      gasDCAeur = getEUR(gasDCAdriver, "First", modelYears)      
-      oilCum3Months = tail(getCumulativePrediction(oilDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      oilCum6Months = tail(getCumulativePrediction(oilDCAdriver, max(well$ProductionMonth)+1+6), n = 1)
-      gasCum3Months = tail(getCumulativePrediction(gasDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      gasCum6Months = tail(getCumulativePrediction(gasDCAdriver, max(well$ProductionMonth)+1+6), n = 1)
+      oilreport = getReport(oilDCAdriver)
+      oildcaParams = getDCAValues(oilreport, c("Qi","Di","b"))
+      oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3] ;oilMonths = getDCAmonths(oilreport,"Number of months")
+      if(length(oilMonths) > 1){
+        lastsegmentstart = max(well$ProductionMonth)+1-amatch(oilQi,getPrediction(oilDCAdriver,max(well$ProductionMonth)+1))+1
+      } else {lastsegmentstart = max(well$ProductionMonth)+1 - which.max(oilProduction)+1}
+      
+      oilCum3Months = sum(arps(oilQi,oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:3)]) + well$PreRefracCumOil[1]
+      oilCum6Months = sum(arps(oilQi,oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:6)]) + well$PreRefracCumOil[1]
+      
+      gasDCAeur = getEUR(gasDCAdriver, "First", modelYears)    
+      gasreport = getReport(gasDCAdriver)
+      gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
+      gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3] ;gasMonths = getDCAmonths(gasreport,"Number of months")
+      if(length(gasMonths) > 1){
+        lastsegmentstart = max(well$ProductionMonth)+1-amatch(gasQi,getPrediction(gasDCAdriver,max(well$ProductionMonth)+1))+1
+      } else {lastsegmentstart = max(well$ProductionMonth)+1 - which.max(gasProduction)+1}
+      
+      gasCum3Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:3)]) + well$PreRefracCumGas[1]
+      gasCum6Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:6)]) + well$PreRefracCumGas[1]
       
       output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
       output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
@@ -146,6 +192,7 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
       output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
       
+    }
     }
   }
   return(output)
@@ -208,15 +255,9 @@ createDriver <- function(date,production,unit)     #Units for constructor are ei
 }
 
 segmentation <- function(DCAdriver, boolean, threshold) #integer value typically b/w 2-5
-{
-  J(DCAdriver, "setSegmentation", boolean ,threshold)
-}
-
-getEstimatedReserves <- function(DCAdriver)
-{
-  J(DCAdriver, "getEstimatedReserves")
-}
-
+{J(DCAdriver, "setSegmentation", boolean ,threshold)}
+setMinimumProduction <- function(DCAdriver, minrate){J(DCAdriver, "setMinimumProduction", minrate)}
+getEstimatedReserves <- function(DCAdriver){J(DCAdriver, "getEstimatedReserves")}
 
 setModel <- function(modelType)
 {
@@ -224,51 +265,19 @@ setModel <- function(modelType)
   a = J( modelList, "add", modelType)
   return(modelList)
 }
-
-getProduct <- function(DCAdriver)
-{
-  .jcall(DCAdriver,"[D", "getProduction" )
-}
-
-getProduction <- function(DCAdriver,months)
-{
-  .jcall(DCAdriver,"[D", "getProduction",as.integer(months ))
-}
-
-
-getCumProduction <- function(DCAdriver)
-{
-  .jcall( DCAdriver,"[D", "getCumulativeProductionStream" )
-}
-
+getProduct <- function(DCAdriver){.jcall(DCAdriver,"[D", "getProduction" )}
+getProduction <- function(DCAdriver,months){.jcall(DCAdriver,"[D", "getProduction",as.integer(months ))}
+getCumProduction <- function(DCAdriver) {  .jcall( DCAdriver,"[D", "getCumulativeProductionStream" )}
 ##getCumulativeProduction 
-
-
-getPredict <- function(DCAdriver)
-{
-  .jcall(DCAdriver,"[D", "getPrediction")
-}
-
-getPrediction <- function(DCAdriver, months)
-{
-  .jcall(DCAdriver,"[D", "getPrediction", as.integer(months))
-}
-
+getPredict <- function(DCAdriver){.jcall(DCAdriver,"[D", "getPrediction")}
+getPrediction <- function(DCAdriver, months){  .jcall(DCAdriver,"[D", "getPrediction", as.integer(months))}
 #getCumulativePrediction <- function(DCAdriver)
 #{
 #  .jcall(DCAdriver,"[D", "getCumulativePrediction")
 #}
-
-getCumPrediction <- function(DCAdriver)
-{
-  .jcall( DCAdriver,"[D", "getCumulativePrediction" )
-}
-
-
-getCumulativePrediction <- function(DCAdriver, months)
-{
-  .jcall(DCAdriver,"[D", "getCumulativePrediction", as.integer(months))
-}
+getCumPrediction <- function(DCAdriver){.jcall( DCAdriver,"[D", "getCumulativePrediction" )}
+getCumulativePrediction <- function(DCAdriver, months){  .jcall(DCAdriver,"[D", "getCumulativePrediction", as.integer(months))}
+getReport <- function(DCAdriver) {.jcall(DCAdriver, "S", "getReport")}
 
 getDCAValues <- function(string,x)
 {
@@ -284,6 +293,29 @@ getDCAValues <- function(string,x)
   return(output)
 }
 
+getDCAmonths <- function(string,x)
+{
+  regularexpression = ":   [+]?[0-9]*[.]?[0-9]+([eE][-+]?[0-9]+)?"
+  output = c()
+  pattern = paste(x,regularexpression,sep = "")
+  qiString = unlist(str_extract_all(string,pattern))
+  value= as.numeric(str_sub(qiString,start = 3+nchar(x)))
+  output = value
+  return(output)
+}
+
+arps <- function(qi,di,b,t)
+{
+  output = c()
+  if(length(t) ==1){
+    return(qi/(1+di*b*t)^(1/b))
+  } else {
+    for (i in 1:length(t)){
+      output[i] = qi/(1+di*b*t[i])^(1/b)
+    }
+    return(output)
+  } 
+}
 #setForecast <- function(years)
 #{
 #  J( as.double(years), "setForecastYears")
@@ -308,31 +340,11 @@ print(.jclassPath())
 modelList = setModel("Arps")
 modelYears = 35.0
 
-#output_total = forecastDCA(a,"bbl","Mcf", oilsegmentation,gassegmentation)
-
-
 output_total = forecastDCA(input,"bbl","Mcf", oilsegmentation,gassegmentation)
-
-input_reduced = subset(input, input$Time2Refrac > 2)
-refracAPI = unique(input_reduced$api)
-o = data.frame()
-count = 0 
-for(i in 1:length(refracAPI)) {
-  count = count+1 ; print(count)
-  c = filter(input_reduced, api == refracAPI[i]) 
-  c = filter(c, Time2Refrac == min(Time2Refrac))
-  c = filter(c, RefraccompletionDate == min(RefraccompletionDate))
-  c = filter(c, ProductionMonth <= Time2Refrac[1]) 
-  
-  o = rbind(o,c)
-}
-count = 0 
-
 output_prerefrac = forecastDCA(o,"bbl","Mcf",oilsegmentation,gassegmentation)
-
+output_total  = output_total[,1:3]
 names(output_total) = c("api", "Total Oil EUR", "Total Gas EUR")
-names(output_prerefrac) = c("api", "Pre-Refrac Oil EUR", "Pre-Refrac Gas EUR")
-
+names(output_prerefrac) = c("api", "Pre-Refrac Oil EUR", "Pre-Refrac Gas EUR","Pre-Refrac Oil 3M","Pre-Refrac Gas 3M","Pre-Refrac Oil 6M","Pre-Refrac Gas 6M")
 output = merge(output_total,output_prerefrac, by = "api")
 
 write.csv(output, "C:/Users/gordon.tsai/Documents/DCA Model/output.csv", row.names = FALSE) 

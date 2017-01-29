@@ -53,6 +53,7 @@ DCAdriver <- .jnew("com.drillinginfo.dca.DCAdriver",date,production,unit) #main 
 
 .jcall( DCAdriver, "V", "setModelTypes", modelList )
 J( DCAdriver, "getModelTypes")
+J(DCAdriver, "setSegmentation", TRUE ,1.0)
 J( DCAdriver, "model")
 .jcall(DCAdriver, "S", "getReport")
 
@@ -60,7 +61,7 @@ DCAeur <- J( DCAdriver, "getEUR")
 DCAfit <- J(DCAdriver, "getFitCC")
 DCAmodel <- J( DCAdriver, "getLastSegmentModel")
 DCAtype <- J( DCAmodel, "getType" )
-parms <- J( DCAmodel, "getModel" )
+parms <- J( DCAdriver, "getModel" )
 
 models <- J(DCAdriver, "getModel")
 prediction <- .jcall(DCAdriver, "[D", "getPrediction")

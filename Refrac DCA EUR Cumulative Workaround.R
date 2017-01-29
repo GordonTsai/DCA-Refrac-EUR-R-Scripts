@@ -4,6 +4,8 @@ library("ggplot2")
 library("grid")
 library("gridExtra")
 library("dplyr")
+library("stringr")
+library("aRpsDCA")
 
 if(!exists("master_data")){
   {
@@ -48,12 +50,12 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
   gasCum3Months= numeric(length(api_list))
   oilCum6Months = numeric(length(api_list))  
   gasCum6Months = numeric(length(api_list))
-  output = data.frame(api = api_list,'Oil EUR' = oilEUR, 'Gas EUR' = gasEUR, 'Oil Cum. 3M' = oilCum3Months, 'Gas Cum. 3M' = oilCum6Months, 'Oil Cum. 6M' = oilCum6Months, 'Gas Cum. 6M' = gasCum6Months)
+  output = data.frame(api = api_list,'Oil EUR' = oilEUR, 'Gas EUR' = gasEUR, 'Oil Cum. 3M' = oilCum3Months, 'Gas Cum. 3M' = gasCum3Months, 'Oil Cum. 6M' = oilCum6Months, 'Gas Cum. 6M' = gasCum6Months)
   
   #api = 4212131438
   #i = match(api, api_list)
   #i = 1
-  for(i in 1:50) {
+  for(i in 1:10) {
     count = count + 1
     print(count)
     well = subset(input, input$api == api_list[i])
@@ -100,10 +102,22 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       oilCum6Months = 2222222222     
       
       gasDCAeur = getEUR(gasDCAdriver,"First",modelYears)
-      gasreport = getReport(gasDCAdriver)
-      gasCum3Months = tail(getCumulativePrediction(gasDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      gasCum6Months = tail(getCumulativePrediction(gasDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      
+      if(gasDCAeur != 3333333333)
+        {
+          gasreport = getReport(gasDCAdriver)
+          gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
+          gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3]
+          
+          gasCum3Months = arps.Np.hyp2exp(arps.decline(gasQi,as.nominal(gasDi,from.period="year", to.period= "month"),gasB,Df),max(well$ProductionMonth)+1+3)
+          gasCum6Months = arps.Np.hyp2exp(arps.decline(gasQi,as.nominal(gasDi,from.period="year", to.period= "month"),gasB,Df),max(well$ProductionMonth)+1+6)
+          #gasCum3Months = hyp2exp.Np(gasQi,as.effective(gasDi),gasB,Df,max(well$ProductionMonth)+1+3)
+          #gasCum6Months = hyp2exp.Np(gasQi,as.effective(gasDi),gasB,Df,max(well$ProductionMonth)+1+6)
+          
+      } else {
+        gasCum3Months = 3333333333
+        gasCum6Months = 3333333333
+        
+      }
       output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
       output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
       output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
@@ -121,11 +135,19 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       gasCum6Months = 2222222222
       
       oilDCAeur = getEUR(oilDCAdriver, "First", modelYears)
-      oilreport = getReport(oilDCAdriver)
-      
-      oilCum3Months = tail(getCumulativePrediction(oilDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      oilCum6Months = tail(getCumulativePrediction(oilDCAdriver, max(well$ProductionMonth)+1+6), n = 1)
-      
+      if(oilDCAeur != 3333333333)
+      {  
+        oilreport = getReport(oilDCAdriver)
+        oildcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
+        oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3]
+        oilCum3Months = arps.Np.hyp2exp(arps.decline(oilQi,as.nominal(oilDi,from.period="year", to.period= "month"),oilB,Df),max(well$ProductionMonth)+1+3)
+        oilCum6Months = arps.Np.hyp2exp(arps.decline(oilQi,as.nominal(oilDi,from.period="year", to.period= "month"),oilB,Df),max(well$ProductionMonth)+1+6)
+        #oilCum3Months = hyp2exp.Np(oilQi,as.effective(oilDi),oilB,Df,max(well$ProductionMonth)+1+3)
+        #oilCum6Months = hyp2exp.Np(oilQi,as.effective(oilDi),oilB,Df,max(well$ProductionMonth)+1+6)
+      } else {
+        oilCum3Months = 3333333333
+        oilCum6Months = 3333333333
+      }
       
       output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
       output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
@@ -138,14 +160,36 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       
       oilDCAeur = getEUR(oilDCAdriver, "First", modelYears)
       gasDCAeur = getEUR(gasDCAdriver, "First", modelYears)      
-      oilreport = getReport(oilDCAdriver)
-      gasreport = getReport(gasDCAdriver)
-      oilCum3Months = tail(getCumulativePrediction(oilDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      oilCum6Months = tail(getCumulativePrediction(oilDCAdriver, max(well$ProductionMonth)+1+6), n = 1)
-      gasCum3Months = tail(getCumulativePrediction(gasDCAdriver, max(well$ProductionMonth)+1+3), n = 1)
-      gasCum6Months = tail(getCumulativePrediction(gasDCAdriver, max(well$ProductionMonth)+1+6), n = 1)
+      oilDCAeur = getEUR(oilDCAdriver, "First", modelYears)
+      if(oilDCAeur != 3333333333)
+      {  
+        oilreport = getReport(oilDCAdriver)
+        oildcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
+        oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3]
+        oilCum3Months = arps.Np.hyp2exp(arps.decline(oilQi,as.nominal(oilDi,from.period="year", to.period= "month"),oilB,Df),max(well$ProductionMonth)+1+3)
+        oilCum6Months = arps.Np.hyp2exp(arps.decline(oilQi,as.nominal(oilDi,from.period="year", to.period= "month"),oilB,Df),max(well$ProductionMonth)+1+6)
+        #oilCum3Months = hyp2exp.Np(oilQi,as.effective(oilDi),oilB,Df,max(well$ProductionMonth)+1+3)
+        #oilCum6Months = hyp2exp.Np(oilQi,as.effective(oilDi),oilB,Df,max(well$ProductionMonth)+1+6)
+      } else {
+        oilCum3Months = 3333333333
+        oilCum6Months = 3333333333
+      }
       
-      
+      if(gasDCAeur != 3333333333)
+      {
+        gasreport = getReport(gasDCAdriver)
+        gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
+        gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3]
+        gasCum3Months = arps.Np.hyp2exp(arps.decline(gasQi,as.nominal(gasDi,from.period="year", to.period= "month"),gasB,Df),max(well$ProductionMonth)+1+3)
+        gasCum6Months = arps.Np.hyp2exp(arps.decline(gasQi,as.nominal(gasDi,from.period="year", to.period= "month"),gasB,Df),max(well$ProductionMonth)+1+6)
+        #gasCum3Months = hyp2exp.Np(gasQi,as.effective(gasDi),gasB,Df,max(well$ProductionMonth)+1+3)
+        #gasCum6Months = hyp2exp.Np(gasQi,as.effective(gasDi),gasB,Df,max(well$ProductionMonth)+1+6)
+      } else {
+        gasCum3Months = 3333333333
+        gasCum6Months = 3333333333
+        
+      }
+
       output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
       output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
       output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
@@ -154,6 +198,7 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
       
     }
+    print(TRUE)
   }
   return(output)
 }
@@ -204,6 +249,20 @@ getEUR <- function(DCAdriver,reference , modelYears)
     
   })
 
+getDCAValues <- function(string,x)
+{
+  regularexpression = ": [+]?[0-9]*[.]?[0-9]+([eE][-+]?[0-9]+)?"
+  output = c()
+  for(i in 1:length(x))
+  {
+    pattern = paste(x[i],regularexpression,sep = "")
+    qiString = unlist(str_extract_all(string,pattern))
+    value= as.numeric(str_sub(qiString[length(qiString)],start = 3+nchar(x[i])))
+    output[i] = value
+  }
+  return(output)
+}
+
 createDriver <- function(date,production,unit)     #Units for constructor are either "bbl" or "Mcf"
 {
   driver <- .jnew("com.drillinginfo.dca.DCAdriver",date,production,unit) #main (dates[S],values[D],units[L] )
@@ -229,6 +288,9 @@ getCumPrediction <- function(DCAdriver) {.jcall( DCAdriver,"[D", "getCumulativeP
 getCumulativePrediction <- function(DCAdriver, months) {.jcall(DCAdriver,"[D", "getCumulativePrediction", as.integer(months))}
 getReport <- function(DCAdriver) {.jcall(DCAdriver, "S", "getReport")}
 
+
+arps.Np.hyp2exp <- function(decl, t) hyp2exp.Np(decl$qi, decl$Di, decl$b, decl$Df, t)
+
 ######################################################################################################################Script for DCA
 
 ## Essentially JNI interface
@@ -240,15 +302,14 @@ getReport <- function(DCAdriver) {.jcall(DCAdriver, "S", "getReport")}
 #.jclassPath returns a vector containg the current entries in the class path
 print(.jclassPath())
 #.jinit(classpath = .jclassPath())
-
+options(digits = 19) ##for regex expression to take in more decimal places when using as.numeric()
 
 #### Error 111111111 = less than points of production
 #### Error 333333333 = getEUR error probably one model() part from java
 
 modelList = setModel("Arps")
 modelYears = 35.0
-
-#output_total = forecastDCA(a,"bbl","Mcf", oilsegmentation,gassegmentation)
+Df = as.nominal(.05,from.period = "year", to.period = "month")
 
 output_total = forecastDCA(input,"bbl","Mcf", oilsegmentation,gassegmentation)
 
@@ -269,10 +330,12 @@ count = 0
 
 output_prerefrac = forecastDCA(o,"bbl","Mcf",oilsegmentation,gassegmentation)
 
+output_total  = output_total[,1:3]
 names(output_total) = c("api", "Total Oil EUR", "Total Gas EUR")
-names(output_prerefrac) = c("api", "Pre-Refrac Oil EUR", "Pre-Refrac Gas EUR")
+names(output_prerefrac) = c("api", "Pre-Refrac Oil EUR", "Pre-Refrac Gas EUR","Pre-Refrac Oil 3M Cum","Pre-Refrac Gas 3m Cum","Pre-Refrac Oil 6M Cum","Pre-Refrac Gas 6M Cum")
 
 output = merge(output_total,output_prerefrac, by = "api")
 
 write.csv(output, "C:/Users/gordon.tsai/Documents/DCA Model/output.csv", row.names = FALSE) 
+
 
