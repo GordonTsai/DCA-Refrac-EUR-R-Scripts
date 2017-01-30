@@ -19,6 +19,8 @@ if(!exists("master_data")){
 
 count = 0 
 input = master_data
+input = subset(input, !is.na(input$Time2Refrac))
+input = subset(input,input$Time2Refrac>3)
 
 if(!exists("o")){
   { 
@@ -40,6 +42,8 @@ if(!exists("o")){
 
 count = 0 
 
+
+ 
 
 # Install JAVA
 ### http://www.java.com/en/download/manual.jsp
@@ -124,8 +128,8 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
       gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3]; gasMonths = getDCAmonths(gasreport,"Number of months")
       if(length(gasMonths) > 1){
-        lastsegmentstart = max(well$ProductionMonth)+1-amatch(gasQi,getPrediction(gasDCAdriver,max(well$ProductionMonth)+1))+1
-      } else {lastsegmentstart = max(well$ProductionMonth)+1 - which.max(gasProduction)+1}
+        lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(gasQi,getPrediction(gasDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1))+1
+      } else {lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1 - which.max(na.omit(gasProduction))+1}
     
       gasCum3Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:3)]) + well$PreRefracCumGas[1]
       gasCum6Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:6)]) + well$PreRefracCumGas[1]
@@ -148,8 +152,8 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       oildcaParams = getDCAValues(oilreport, c("Qi","Di","b"))
       oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3] ;oilMonths = getDCAmonths(oilreport,"Number of months")
       if(length(oilMonths) > 1){
-        lastsegmentstart = max(well$ProductionMonth)+1-amatch(oilQi,getPrediction(oilDCAdriver,max(well$ProductionMonth)+1))+1
-      } else {lastsegmentstart = max(well$ProductionMonth)+1 - which.max(oilProduction)+1}
+        lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(oilQi,getPrediction(oilDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1))+1
+      } else {lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1 - which.max(na.omit(oilProduction))+1}
       
       oilCum3Months = sum(arps(oilQi,oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:3)]) + well$PreRefracCumOil[1]
       oilCum6Months = sum(arps(oilQi,oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:6)]) + well$PreRefracCumOil[1]
@@ -168,8 +172,8 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       oildcaParams = getDCAValues(oilreport, c("Qi","Di","b"))
       oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3] ;oilMonths = getDCAmonths(oilreport,"Number of months")
       if(length(oilMonths) > 1){
-        lastsegmentstart = max(well$ProductionMonth)+1-amatch(oilQi,getPrediction(oilDCAdriver,max(well$ProductionMonth)+1))+1
-      } else {lastsegmentstart = max(well$ProductionMonth)+1 - which.max(oilProduction)+1}
+        lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(oilQi,getPrediction(oilDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1))+1
+      } else {lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1 - which.max(na.omit(oilProduction))+1}
       
       oilCum3Months = sum(arps(oilQi,oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:3)]) + well$PreRefracCumOil[1]
       oilCum6Months = sum(arps(oilQi,oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:6)]) + well$PreRefracCumOil[1]
@@ -179,8 +183,8 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
       gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3] ;gasMonths = getDCAmonths(gasreport,"Number of months")
       if(length(gasMonths) > 1){
-        lastsegmentstart = max(well$ProductionMonth)+1-amatch(gasQi,getPrediction(gasDCAdriver,max(well$ProductionMonth)+1))+1
-      } else {lastsegmentstart = max(well$ProductionMonth)+1 - which.max(gasProduction)+1}
+        lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(gasQi,getPrediction(gasDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1))+1
+      } else {lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1 - which.max(na.omit(gasProduction))+1}
       
       gasCum3Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:3)]) + well$PreRefracCumGas[1]
       gasCum6Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[c(1:6)]) + well$PreRefracCumGas[1]
