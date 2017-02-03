@@ -24,13 +24,12 @@ if(!exists("o")||!exists("Time_Current")||!exists("input_reduced")){
   { 
     input_reduced = subset(input, input$Time2Refrac > 3)
     input_reduced = subset(input_reduced, !is.na(input_reduced$Time2Refrac))
-    input_reduced = subset(input_reduced, input_reduced$Time2Refrac <= max(input_reduced$ProductionMonth))
     refracAPI = unique(input_reduced$api)
     o = data.frame()
     currentTime = numeric(length(refracAPI))
-    Time_Current = data.frame(api = refracAPI, "Max Month" = currentTime)
+    Time_Current = data.frame(api = refracAPI)
     count = 0 
-    for(i in 1:length(refracAPI)) {0
+    for(i in 1:length(refracAPI)) {
       count = count+1 ; print(count)
       d = filter(input_reduced, api == refracAPI[i]) 
       d = filter(d, Time2Refrac == min(Time2Refrac))
@@ -53,9 +52,6 @@ if(!exists("o")||!exists("Time_Current")||!exists("input_reduced")){
 
 count = 0 
 
-
-
-
 # Install JAVA
 ### http://www.java.com/en/download/manual.jsp
 ### if R is 64 bit then you need the 64 bit JAVA. By default, the download page gives a 32 bit version 
@@ -77,7 +73,7 @@ count = 0
 #R.Version()# 64 or 32 Progam Files refers to 64
 #rm(list=ls())
 
-forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment, currentTime) {
+forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment, currentTime,oilEconlimit,gasEconLimit) {
   input = input[order(input$api),]
   api_list = unique(input$api)
   
@@ -90,11 +86,27 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment, currentTim
   gasCum6Months = numeric(length(api_list))
   oilCumCurrent = numeric(length(api_list))  
   gasCumCurrent = numeric(length(api_list))
-  output = data.frame(api = api_list,'Oil EUR' = oilEUR, 'Gas EUR' = gasEUR, 'Oil Cum. 3M' = oilCum3Months, 'Gas Cum. 3M' = oilCum6Months, 'Oil Cum. 6M' = oilCum6Months, 'Gas Cum. 6M' = gasCum6Months, 'Oil Cum. Current' = oilCumCurrent, 'Gas Cum. Current' = gasCumCurrent)
+  oilmodelQi = numeric(length(api_list))
+  gasmodelQi = numeric(length(api_list))
+  oilmodelDi = numeric(length(api_list))
+  gasmodelDi = numeric(length(api_list))
+  oilmodelB = numeric(length(api_list))
+  gasmodelB = numeric(length(api_list))
+  oilmodelTime = numeric(length(api_list))
+  gasmodelTime = numeric(length(api_list))
+  oilinitialDi = numeric(length(api_list))
+  gasinitialDi = numeric(length(api_list))
+  oilrefracDi = numeric(length(api_list))
+  gasrefracDi = numeric(length(api_list))
+  output = data.frame(api = api_list,'Oil EUR' = oilEUR, 'Gas EUR' = gasEUR, 'Oil Cum. 3M' = oilCum3Months, 'Gas Cum. 3M' = oilCum6Months, 
+                      'Oil Cum. 6M' = oilCum6Months, 'Gas Cum. 6M' = gasCum6Months, 'Oil Cum. Current' = oilCumCurrent, 'Gas Cum. Current' = gasCumCurrent,
+                      'Oil Model Qi' = oilmodelQi,'Gas Model Qi' = gasmodelQi, 'Oil Model Di' = oilmodelDi,'Gas Model Di' = gasmodelDi, 
+                      'Oil Model B'= oilmodelB, 'Gas Model B'= gasmodelB, 'Oil Model Time' = oilmodelTime, 'Gas Model Time' = gasmodelTime,
+                      'Oil Di Initial' = oilinitialDi,'Gas Di Initial' = gasinitialDi,'Oil Refrac Di' = oilrefracDi,'Gas Refrac Di' = gasrefracDi)
   
-  api = 4249533403
-
-  i = match(api, api_list)
+  #api = 3302501061
+  #i = match(api, api_list)
+  #i = 2080
   for(i in 1:length(api_list)) {
     count = count + 1
     print(count)
@@ -126,27 +138,33 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment, currentTim
     if(length(well$api)<=5)
     {
       oilDCAeur = 111111111
-      gasDCAeur = 111111111
       oilCum3Months = 111111111
-      gasCum3Months = 111111111
-      oilCum6Months = 111111111
-      gasCum6Months = 111111111
+      oilCum6Months = 111111111  
       oilCumCurrent = 111111111
+      oilmodelQi = 111111111
+      oilmodelDi = 111111111
+      oilmodelB = 111111111
+      oilmodelTime = 111111111
+      oilinitialDi  = 111111111
+      oilrefracDi  = 111111111
+      gasDCAeur = 111111111
+      gasCum3Months = 111111111
+      gasCum6Months = 111111111
       gasCumCurrent = 111111111
+      gasmodelQi = 111111111
+      gasmodelDi = 111111111
+      gasmodelB = 111111111
+      gasmodelTime = 111111111
+      gasinitialDi  = 111111111
+      gasrefracDi  = 111111111
       
-      output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-      output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-      output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
-      output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
-      output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
-      output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
-      output$Oil.Cum..Current[output$api == api_list[i]] = oilCumCurrent
-      output$Gas.Cum..Current[output$api == api_list[i]] = gasCumCurrent
-      
+      output = saveOutput(output,i,oilDCAeur,oilCum3Months,oilCum6Months,oilCumCurrent,oilmodelQi,oilmodelDi,oilmodelB,
+                          oilmodelTime, oilinitialDi, oilrefracDi, gasDCAeur,gasCum3Months,gasCum6Months,gasCumCurrent, gasmodelQi, 
+                          gasmodelDi , gasmodelB, gasmodelTime, gasinitialDi, gasrefracDi,api_list = api_list)
     } else  {
-      gasDCAdriver = createDriver(date,gasProduction,gasunit); segmentation(gasDCAdriver, TRUE,3.0)
+      gasDCAdriver = createDriver(date,gasProduction,gasunit); segmentation(gasDCAdriver, TRUE,3.0); setTailDecline(gasDCAdriver, taildecline)
       #setMinimumProduction(gasDCAdriver, 0.0)
-      oilDCAdriver = createDriver(date,oilProduction,oilunit); segmentation(oilDCAdriver, TRUE,3.0)
+      oilDCAdriver = createDriver(date,oilProduction,oilunit); segmentation(oilDCAdriver, TRUE,3.0); setTailDecline(oilDCAdriver, taildecline)
       #setMinimumProduction(oilDCAdriver, 0.0)
       
       if (((length(oilProduction[oilProduction != 0])<5) || (((length(oilProduction[oilProduction != 0]))/(length(oilProduction))) <= .25)) & ((length(gasProduction[gasProduction != 0])<5) || (((length(gasProduction[gasProduction !=0]))/(length(gasProduction))) <= .25))) {
@@ -155,147 +173,186 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment, currentTim
         oilCum3Months = 2222222222
         oilCum6Months = 2222222222  
         oilCumCurrent = 2222222222
-        
+        oilmodelQi = 2222222222
+        oilmodelDi = 2222222222
+        oilmodelB = 2222222222
+        oilmodelTime = 2222222222
+        oilinitialDi  = 2222222222
+        oilrefracDi  = 2222222222
         gasDCAeur = 2222222222
         gasCum3Months = 2222222222
         gasCum6Months = 2222222222
         gasCumCurrent = 2222222222
+        gasmodelQi = 2222222222
+        gasmodelDi = 2222222222
+        gasmodelB = 2222222222
+        gasmodelTime = 2222222222
+        gasinitialDi  = 2222222222
+        gasrefracDi  = 2222222222
         
-        output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-        output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-        output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
-        output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
-        output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
-        output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
-        output$Oil.Cum..Current[output$api == api_list[i]] = oilCumCurrent
-        output$Gas.Cum..Current[output$api == api_list[i]] = gasCumCurrent
-        
+        output = saveOutput(output,i,oilDCAeur,oilCum3Months,oilCum6Months,oilCumCurrent,oilmodelQi,oilmodelDi,oilmodelB,
+                            oilmodelTime, oilinitialDi, oilrefracDi, gasDCAeur,gasCum3Months,gasCum6Months,gasCumCurrent, gasmodelQi, 
+                            gasmodelDi , gasmodelB, gasmodelTime, gasinitialDi, gasrefracDi,api_list = api_list)
       } else if (((length(oilProduction[oilProduction != 0]))<5) || (((length(oilProduction[oilProduction != 0]))/(length(oilProduction))) <= .25)) {
         
         oilDCAeur = 2222222222
         oilCum3Months = 2222222222
         oilCum6Months = 2222222222
         oilCumCurrent = 2222222222
+        oilmodelQi = 2222222222
+        oilmodelDi = 2222222222
+        oilmodelB = 2222222222
+        oilmodelTime = 2222222222
+        oilinitialDi  = 2222222222
+        oilrefracDi  = 2222222222
         
         gasDCAeur = getEUR(gasDCAdriver,"First",modelYears)
         gasreport = getReport(gasDCAdriver)
         gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
-        gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3]; gasMonths = getDCAmonths(gasreport,"Number of months")
+        gasmodelQi = gasdcaParams[1];gasmodelDi = gasdcaParams[2];gasmodelB = gasdcaParams[3]; gasMonths = getDCAmonths(gasreport,"Number of months"); gasmodelDiValues = getDiValues(gasreport, "Di") 
+        gasinitialDi = gasmodelDiValues[1]
+        gasrefracDi = gasmodelDiValues[min(which(cumsum(gasMonths)>(well$Time2Refrac[1])+3))]
+        
+        #gasrefracDi = gasmodelDiValues[length(gasmodelDiValues)]
         if(length(gasMonths) > 1){
-          lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(gasQi,getPrediction(gasDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1))+1
+          lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(gasmodelQi,getPrediction(gasDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1),maxDist = 13)+1
         } else {lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1 - which.max(na.omit(gasProduction))+1}
         
-        rate_time = arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+currentMonth-max(well$ProductionMonth)))
-        gasCum3Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+3))[1:3]) + well$PreRefracCumGas[1]
-        gasCum6Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[1:6]) + well$PreRefracCumGas[1]
-        gasCumCurrent = sum(rate_time[]) + well$PreRefracCumGas[1]
+        gasmodelTime = lastsegmentstart
+        rate_time_current = arps(gasmodelQi,gasmodelDi,gasmodelB,seq(lastsegmentstart,lastsegmentstart+currentMonth-max(well$ProductionMonth))); rate_time_current[rate_time_current<gasEconLimit]<-0
+        rate_time_3M <- arps(gasmodelQi,gasmodelDi,gasmodelB,seq(lastsegmentstart,lastsegmentstart+3)); rate_time_3M[rate_time_3M<gasEconLimit] <- 0
+        rate_time_6M <- arps(gasmodelQi,gasmodelDi,gasmodelB,seq(lastsegmentstart,lastsegmentstart+6)); rate_time_6M[rate_time_6M<gasEconLimit] <- 0
+        gasCum3Months = sum(rate_time_3M[1:3]) + well$PreRefracCumGas[1]
+        gasCum6Months = sum(rate_time_6M[1:6]) + well$PreRefracCumGas[1]
+        gasCumCurrent = sum(rate_time_current) + well$PreRefracCumGas[1]
         
-        output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-        output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-        output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
-        output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
-        output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
-        output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
-        output$Oil.Cum..Current[output$api == api_list[i]] = oilCumCurrent
-        output$Gas.Cum..Current[output$api == api_list[i]] = gasCumCurrent
-        
+        output = saveOutput(output,i,oilDCAeur,oilCum3Months,oilCum6Months,oilCumCurrent,oilmodelQi,oilmodelDi,oilmodelB,
+                            oilmodelTime, oilinitialDi, oilrefracDi, gasDCAeur,gasCum3Months,gasCum6Months,gasCumCurrent, gasmodelQi, 
+                            gasmodelDi , gasmodelB, gasmodelTime, gasinitialDi, gasrefracDi,api_list = api_list)
       } else if (((length(gasProduction[gasProduction != 0]))<5) || (((length(gasProduction[gasProduction != 0]))/(length(gasProduction))) <= .25)) {
         
         gasDCAeur = 2222222222
         gasCum3Months = 2222222222
         gasCum6Months = 2222222222
         gasCumCurrent = 2222222222
+        gasmodelQi = 2222222222
+        gasmodelDi = 2222222222
+        gasmodelB = 2222222222
+        gasmodelTime = 2222222222
+        gasinitialDi  = 2222222222
+        gasrefracDi  = 2222222222
         
         oilDCAeur = getEUR(oilDCAdriver, "First", modelYears)
         oilreport = getReport(oilDCAdriver)
         oildcaParams = getDCAValues(oilreport, c("Qi","Di","b"))
-        oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3] ;oilMonths = getDCAmonths(oilreport,"Number of months")
+        oilmodelQi = oildcaParams[1];oilmodelDi = oildcaParams[2];oilmodelB = oildcaParams[3] ;oilMonths = getDCAmonths(oilreport,"Number of months"); oilmodelDiValues = getDiValues(oilreport, "Di")
+        oilinitialDi = oilmodelDiValues[1]
+        oilrefracDi = oilmodelDiValues[min(which(cumsum(oilMonths)>(well$Time2Refrac[1])+3))]
+        
+        #oilrefracDi = oilmodelDiValues[length(oilmodelDiValues)]
         if(length(oilMonths) > 1){
-          lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(oilQi,getPrediction(oilDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1))+1
+          lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(oilmodelQi,getPrediction(oilDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1),maxDist = 13)+1
         } else {lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1 - which.max(na.omit(oilProduction))+1}
         
-        rate_time = arps(oilQi, oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+currentMonth-max(well$ProductionMonth)))
-        oilCum3Months = sum(arps(oilQi, oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+3))[1:3]) + well$PreRefracCumOil[1]
-        oilCum6Months = sum(arps(oilQi, oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[1:6]) + well$PreRefracCumOil[1]
-        oilCumCurrent = sum(rate_time[]) + well$PreRefracCumOil[1]
+        oilmodelTime = lastsegmentstart
+        rate_time_current = arps(oilmodelQi, oilmodelDi,oilmodelB,seq(lastsegmentstart,lastsegmentstart+currentMonth-max(well$ProductionMonth))); rate_time_current[rate_time_current<oilEconlimit] <- 0
+        rate_time_3M <- arps(oilmodelQi, oilmodelDi,oilmodelB,seq(lastsegmentstart,lastsegmentstart+3)); rate_time_3M[rate_time_3M<oilEconlimit] <- 0
+        rate_time_6M <- arps(oilmodelQi, oilmodelDi,oilmodelB,seq(lastsegmentstart,lastsegmentstart+6)); rate_time_6M[rate_time_6M<oilEconlimit] <- 0
+        oilCum3Months = sum(rate_time_3M[1:3]) + well$PreRefracCumOil[1]
+        oilCum6Months = sum(rate_time_6M[1:6]) + well$PreRefracCumOil[1]
+        oilCumCurrent = sum(rate_time_current) + well$PreRefracCumOil[1]
         
-        output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-        output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-        output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
-        output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
-        output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
-        output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
-        output$Oil.Cum..Current[output$api == api_list[i]] = oilCumCurrent
-        output$Gas.Cum..Current[output$api == api_list[i]] = gasCumCurrent
-        
+        output = saveOutput(output,i,oilDCAeur,oilCum3Months,oilCum6Months,oilCumCurrent,oilmodelQi,oilmodelDi,oilmodelB,
+                            oilmodelTime, oilinitialDi, oilrefracDi, gasDCAeur,gasCum3Months,gasCum6Months,gasCumCurrent, gasmodelQi, 
+                            gasmodelDi , gasmodelB, gasmodelTime, gasinitialDi, gasrefracDi,api_list = api_list)
       } else {  
         
         oilDCAeur = getEUR(oilDCAdriver, "First", modelYears)
+        oilEstimatedReserves = getEstimatedReserves(oilDCAdriver)
+        oilCumulativeProduction = getCumulativeProduction(oilDCAdriver)
         oilreport = getReport(oilDCAdriver)
         oildcaParams = getDCAValues(oilreport, c("Qi","Di","b"))
-        oilQi = oildcaParams[1];oilDi = oildcaParams[2];oilB = oildcaParams[3] ;oilMonths = getDCAmonths(oilreport,"Number of months")
+        oilmodelQi = oildcaParams[1];oilmodelDi = oildcaParams[2];oilmodelB = oildcaParams[3] ;oilMonths = getDCAmonths(oilreport,"Number of months"); oilmodelDiValues = getDiValues(oilreport, "Di")
+        oilinitialDi = oilmodelDiValues[1]
+        oilrefracDi = oilmodelDiValues[min(which(cumsum(oilMonths)>(well$Time2Refrac[1])+3))]
+        #oilrefracDi = oilmodelDiValues[length(oilmodelDiValues)]
         if(length(oilMonths) > 1){
-          lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(oilQi,getPrediction(oilDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1))+1
+          lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(oilmodelQi,getPrediction(oilDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1),maxDist = 13)+1
         } else {lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1 - which.max(na.omit(oilProduction))+1}
         
-        rate_time = arps(oilQi, oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+currentMonth-max(well$ProductionMonth)))
-        oilCum3Months = sum(arps(oilQi, oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+3))[1:3]) + well$PreRefracCumOil[1]
-        oilCum6Months = sum(arps(oilQi, oilDi,oilB,seq(lastsegmentstart,lastsegmentstart+6))[1:6]) + well$PreRefracCumOil[1]
-        oilCumCurrent = sum(rate_time[]) + well$PreRefracCumOil[1]
+        oilmodelTime = lastsegmentstart
+        rate_time_current = arps(oilmodelQi, oilmodelDi,oilmodelB,seq(lastsegmentstart,lastsegmentstart+currentMonth-max(well$ProductionMonth))); rate_time_current[rate_time_current<oilEconlimit] <- 0
+        rate_time_3M <- arps(oilmodelQi, oilmodelDi,oilmodelB,seq(lastsegmentstart,lastsegmentstart+3)); rate_time_3M[rate_time_3M<oilEconlimit] <- 0
+        rate_time_6M <- arps(oilmodelQi, oilmodelDi,oilmodelB,seq(lastsegmentstart,lastsegmentstart+6)); rate_time_6M[rate_time_6M<oilEconlimit] <- 0
+        oilCum3Months = sum(rate_time_3M[1:3]) + well$PreRefracCumOil[1]
+        oilCum6Months = sum(rate_time_6M[1:6]) + well$PreRefracCumOil[1]
+        oilCumCurrent = sum(rate_time_current) + well$PreRefracCumOil[1]
         
-        gasDCAeur = getEUR(gasDCAdriver, "First", modelYears)    
+        gasDCAeur = getEUR(gasDCAdriver, "First", modelYears)
+        gasEstimatedReserves = getEstimatedReserves(gasDCAdriver)
+        gasCumulativeProduction = getCumulativeProduction(gasDCAdriver)
         gasreport = getReport(gasDCAdriver)
         gasdcaParams = getDCAValues(gasreport, c("Qi","Di","b"))
-        gasQi = gasdcaParams[1];gasDi = gasdcaParams[2];gasB = gasdcaParams[3] ;gasMonths = getDCAmonths(gasreport,"Number of months")
+        gasmodelQi = gasdcaParams[1];gasmodelDi = gasdcaParams[2];gasmodelB = gasdcaParams[3] ;gasMonths = getDCAmonths(gasreport,"Number of months");gasmodelDiValues = getDiValues(gasreport, "Di")
+        gasinitialDi = gasmodelDiValues[1]
+        gasrefracDi = gasmodelDiValues[min(which(cumsum(gasMonths)>(well$Time2Refrac[1])+3))]
+        
+        #gasrefracDi = gasmodelDiValues[length(gasmodelDiValues)]
         if(length(gasMonths) > 1){
-          lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(gasQi,getPrediction(gasDCAdriver,max(well$ProductionMonth, na.rm = TRUE)+1))+1
+          lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1-amatch(gasmodelQi,getPrediction(gasDCAdriver,max(well$ProductionMonth, na.rm = TRUE)),maxDist = 13)+1
         } else {lastsegmentstart = max(well$ProductionMonth, na.rm = TRUE)+1 - which.max(na.omit(gasProduction))+1}
         
-        rate_time = arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+currentMonth-max(well$ProductionMonth)))
-        gasCum3Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+3))[1:3]) + well$PreRefracCumGas[1]
-        gasCum6Months = sum(arps(gasQi,gasDi,gasB,seq(lastsegmentstart,lastsegmentstart+6))[1:6]) + well$PreRefracCumGas[1]
-        gasCumCurrent = sum(rate_time[]) + well$PreRefracCumGas[1]
+        gasmodelTime = lastsegmentstart
+        rate_time_current = arps(gasmodelQi,gasmodelDi,gasmodelB,seq(lastsegmentstart,lastsegmentstart+currentMonth-max(well$ProductionMonth))); rate_time_current[rate_time_current<gasEconLimit]<-0
+        rate_time_3M <- arps(gasmodelQi,gasmodelDi,gasmodelB,seq(lastsegmentstart,lastsegmentstart+3)); rate_time_3M[rate_time_3M<gasEconLimit] <- 0
+        rate_time_6M <- arps(gasmodelQi,gasmodelDi,gasmodelB,seq(lastsegmentstart,lastsegmentstart+6)); rate_time_6M[rate_time_6M<gasEconLimit] <- 0
+        gasCum3Months = sum(rate_time_3M[1:3]) + well$PreRefracCumGas[1]
+        gasCum6Months = sum(rate_time_6M[1:6]) + well$PreRefracCumGas[1]
+        gasCumCurrent = sum(rate_time_current) + well$PreRefracCumGas[1]
         
-        output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
-        output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
-        output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
-        output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
-        output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
-        output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
-        output$Oil.Cum..Current[output$api == api_list[i]] = oilCumCurrent
-        output$Gas.Cum..Current[output$api == api_list[i]] = gasCumCurrent
-        
+        output = saveOutput(output,i,oilDCAeur,oilCum3Months,oilCum6Months,oilCumCurrent,oilmodelQi,oilmodelDi,oilmodelB,
+                            oilmodelTime, oilinitialDi, oilrefracDi, gasDCAeur,gasCum3Months,gasCum6Months,gasCumCurrent, gasmodelQi, 
+                            gasmodelDi , gasmodelB, gasmodelTime, gasinitialDi, gasrefracDi,api_list = api_list)
       }
     }
   }
   return(output)
 }
 
-
-
-plotForecast <- function(oilDCAdriver, gasDCAdriver) {
+plotForecast <- function(DCAdriver) {
+  prediction = getPredict(DCAdriver)
+  production = getProduct(DCAdriver)
+  xaxis <- matrix(c(1:length(prediction)), nrow=length(prediction), ncol=1)
+  df2 <- data.frame(xaxis,production,prediction)
   
+  ggplot(df2, aes(xaxis, y = value, color = variable)) +
+    geom_point(aes(y = production, col = "Production")) +
+    geom_point(aes(y = prediction, col = "Predicted"))
+  
+  
+  #  + 
+  #  geom_line(aes(y = production, col = "Production")) +
+  #  geom_line(aes(y = prediction, col = "Predicted"))
   ###########Plotting
-  xaxisOil <- matrix(c(1:length(oilProduction)), nrow=length(oilProduction), ncol=1) ; print(length(oilProduction)); print(length(oilPrediction))
-  Time = xaxisOil
-  df1 <- data.frame(xaxisOil,oilProduction,oilPrediction)
+  #xaxisOil <- matrix(c(1:length(oilProduction)), nrow=length(oilProduction), ncol=1) ; print(length(oilProduction)); print(length(oilPrediction))
+  #Time = xaxisOil
+  #df1 <- data.frame(xaxisOil,oilProduction,oilPrediction)
   
-  gOil = ggplot(df1, aes(Time, y = Bbl, color = Flowstreams)) + 
-    geom_line(aes(y = oilProduction, col = "Oil Production")) +
-    geom_line(aes(y = oilPrediction, col = "Oil Predicted")) ; print(gOil)
+  #gOil = ggplot(df1, aes(Time, y = Bbl, color = Flowstreams)) + 
+  #  geom_line(aes(y = oilProduction, col = "Oil Production")) +
+  #  geom_line(aes(y = oilPrediction, col = "Oil Predicted")) ; print(gOil)
   
-  xaxisGas <- matrix(c(1:length(gasProduction)), nrow=length(gasProduction), ncol=1) ; print(length(gasProduction)); print(length(gasPrediction))
-  Time = xaxisGas
-  df2 <- data.frame(xaxisGas,gasProduction,gasPrediction)
+  #xaxisGas <- matrix(c(1:length(gasProduction)), nrow=length(gasProduction), ncol=1) ; print(length(gasProduction)); print(length(gasPrediction))
+  #Time = xaxisGas
+  #df2 <- data.frame(xaxisGas,gasProduction,gasPrediction)
   
-  gGas = ggplot(df2, aes(Time, y = gasProduction, color = Flowstreams)) + 
-    geom_line(aes(y = gasProduction, col = "Gas Production")) +
-    geom_line(aes(y = gasPrediction, col = "Gas Predicted")) +  scale_fill_manual(values=c("#CC6666", "#9999CC")); print(gGas)
+  #gGas = ggplot(df2, aes(Time, y = gasProduction, color = Flowstreams)) + 
+  #  geom_line(aes(y = gasProduction, col = "Gas Production")) +
+  #  geom_line(aes(y = gasPrediction, col = "Gas Predicted")) +  scale_fill_manual(values=c("#CC6666", "#9999CC")); print(gGas)
   
-  grid.arrange(gOil,gGas, nrow = 2, top = toString(api))
+  #grid.arrange(gOil,gGas, nrow = 2, top = toString(api))
   
 }
-
 
 getEUR <- function(DCAdriver,reference , modelYears)
   #new class Arraylist 
@@ -352,6 +409,16 @@ getCumPrediction <- function(DCAdriver){.jcall( DCAdriver,"[D", "getCumulativePr
 getCumulativePrediction <- function(DCAdriver, months){  .jcall(DCAdriver,"[D", "getCumulativePrediction", as.integer(months))}
 getReport <- function(DCAdriver) {.jcall(DCAdriver, "S", "getReport")}
 
+getDiValues <- function(string, x){
+  regularexpression = ": [+]?[0-9]*[.]?[0-9]+([eE][-+]?[0-9]+)?"
+  output = c()
+  pattern = paste(x,regularexpression,sep = "")
+  qiString = unlist(str_extract_all(string,pattern))
+  value= as.numeric(str_sub(qiString,start = 3+nchar(x)))
+  output = value
+  return(output)
+}
+
 getDCAValues <- function(string,x)
 {
   regularexpression = ": [+]?[0-9]*[.]?[0-9]+([eE][-+]?[0-9]+)?"
@@ -389,6 +456,70 @@ arps <- function(qi,di,b,t)
     return(output)
   } 
 }
+
+setTailDecline <- function(DCAdriver, taildecline)
+{
+  .jcall(DCAdriver, "V", "setTailDecline", taildecline)
+}
+
+getCumulativeProduction <- function(DCAdriver){J(DCAdriver, "getCumulativeProduction")}
+getEstimatedReserves <- function(DCAdriver) {J(DCAdriver, "getEstimatedReserves")}
+
+saveOutput <- function(output,i,oilDCAeur, oilCum3Months,oilCum6Months, oilCumCurrent, oilmodelQi, oilmodelDi,oilmodelB, oilmodelTime, 
+                       oilinitialDi, oilrefracDi, gasDCAeur, gasCum3Months, gasCum6Months, gasCumCurrent, gasmodelQi,gasmodelDi,gasmodelB,
+                       gasmodelTime, gasinitialDi,gasrefracDi, api_list, ...){
+  if (oilDCAeur == 3333333333 || is.na(oilDCAeur) || is.null(oilmodelQi) || is.null(oilmodelDi) || is.null(oilmodelB) || is.null(oilinitialDi) || is.null(oilrefracDi) || is.null(oilmodelTime)){
+    oilDCAeur = 3333333333
+    oilCum3Months = 3333333333
+    oilCum6Months = 3333333333
+    oilCumCurrent = 3333333333
+    oilmodelQi = 3333333333
+    oilmodelDi = 3333333333
+    oilmodelB = 3333333333
+    oilmodelTime = 3333333333
+    oilinitialDi  = 3333333333
+    oilrefracDi  = 3333333333
+    
+  }
+  if (gasDCAeur == 3333333333 || is.na(gasDCAeur) || is.null(gasmodelQi) || is.null(gasmodelDi) || is.null(gasmodelB) || is.null(gasinitialDi) || is.null(gasrefracDi) || is.null(gasmodelTime)){
+    gasDCAeur = 3333333333
+    gasCum3Months = 3333333333
+    gasCum6Months = 3333333333
+    gasCumCurrent = 3333333333
+    gasmodelQi = 3333333333
+    gasmodelDi = 3333333333
+    gasmodelB = 3333333333
+    gasmodelTime = 3333333333
+    gasinitialDi  = 3333333333
+    gasrefracDi  = 3333333333
+  } 
+  
+  output$Oil.EUR[output$api == api_list[i]] = oilDCAeur
+  output$Gas.EUR[output$api == api_list[i]] = gasDCAeur
+  output$Oil.Cum..3M[output$api == api_list[i]] = oilCum3Months
+  output$Gas.Cum..3M[output$api == api_list[i]] = gasCum3Months
+  output$Oil.Cum..6M[output$api == api_list[i]] = oilCum6Months
+  output$Gas.Cum..6M[output$api == api_list[i]] = gasCum6Months
+  output$Oil.Cum..Current[output$api == api_list[i]] = oilCumCurrent
+  output$Gas.Cum..Current[output$api == api_list[i]] = gasCumCurrent
+  output$Oil.Model.Qi[output$api == api_list[i]] = oilmodelQi
+  output$Gas.Model.Qi[output$api == api_list[i]] = gasmodelQi
+  output$Oil.Model.Di[output$api == api_list[i]] = oilmodelDi
+  output$Gas.Model.Di[output$api == api_list[i]] = gasmodelDi
+  output$Oil.Model.B[output$api == api_list[i]] = oilmodelB
+  output$Gas.Model.B[output$api == api_list[i]] = gasmodelB
+  output$Oil.Model.Time[output$api == api_list[i]] = oilmodelTime
+  output$Gas.Model.Time[output$api == api_list[i]] = gasmodelTime
+  output$Oil.Di.Initial[output$api == api_list[i]] = oilinitialDi
+  output$Gas.Di.Initial[output$api == api_list[i]] = gasinitialDi
+  output$Oil.Refrac.Di[output$api == api_list[i]] = oilrefracDi
+  output$Gas.Refrac.Di[output$api == api_list[i]] = gasrefracDi
+  
+  return(output)
+}
+
+
+
 #setForecast <- function(years)
 #{
 #  J( as.double(years), "setForecastYears")
@@ -412,12 +543,20 @@ print(.jclassPath())
 
 modelList = setModel("Arps")
 modelYears = 35.0
+taildecline = "Exponential"
+gasEconLimit = 25.0 #Mcf/day
+oilEconlimit = 1 #bbl/day
 
-output_total = forecastDCA(input_reduced,"bbl","Mcf", oilsegmentation,gassegmentation, Time_Current)
-output_prerefrac = forecastDCA(o,"bbl","Mcf",oilsegmentation,gassegmentation, Time_Current)
-output_total  = output_total[,1:3]
-names(output_total) = c("api", "TotalOilEURForecast", "TotalGasEURForecast")
-names(output_prerefrac) = c("api", "PreRefracOilEURForecast", "PreRefracGasEURForecast","ForecastCumOil_ThreeMonth","ForecastCumGas_ThreeMonth","ForecastCumOil_SixMonth","ForecastCumGas_SixMonth","ForecastCumOil","ForecastCumGas")
+output_total = forecastDCA(input_reduced,"bbl","Mcf", oilsegmentation,gassegmentation, Time_Current,oilEconlimit,gasEconLimit)
+output_prerefrac = forecastDCA(o,"bbl","Mcf",oilsegmentation,gassegmentation, Time_Current,oilEconlimit,gasEconLimit)
+output_total  = output_total[,c(1,2,3,18,19,20,21)]
+output_prerefrac  = output_prerefrac[,1:17]
+names(output_total) = c("api", "TotalOilEURForecast", "TotalGasEURForecast", "TotalOilDiInitial","TotalGasDiInitial","TotalOilDiRefrac",
+                        "TotalGasDiRefrac")
+names(output_prerefrac) = c("api", "PreRefracOilEURForecast", "PreRefracGasEURForecast","ForecastCumOil_ThreeMonth",
+                            "ForecastCumGas_ThreeMonth","ForecastCumOil_SixMonth","ForecastCumGas_SixMonth",
+                            "ForecastCumOil","ForecastCumGas","OilModelQi","GasModelQi","OilModelDi","GasModelDi","OilModelB",
+                            "GasModelB","OilModelTime","GasModelTime")
 output = merge(output_total,output_prerefrac, by = "api")
 
 write.csv(output, "C:/Users/gordon.tsai/Documents/DCA Model/output.csv", row.names = FALSE) 

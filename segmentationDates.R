@@ -167,9 +167,6 @@ forecastDCA <- function(input,oilunit,gasunit, oilsegment,gassegment) {
       output$Gas.Di[output$Entity.ID == api_list[i]] = gasDi
       output$Gas.B[output$Entity.ID == api_list[i]] = gasB
       
-      ###################################################################################################print(J(gasDCAdriver, "getTransitionMonth"))
-      
-      
     } else if(length(gasProduction[gasProduction != 0])<5 || length(gasProduction[oilProduction==0]/length (oilProduction<.25))) {
       
       gasDCAeur = 2222222222
@@ -306,9 +303,7 @@ model<- function(DCAdriver)
   #.jcall( gasDCAdriver, "S", "getReport")
   J(DCAdriver, "setForecastReference", "First" )
   J(DCAdriver, "setForecastYears", as.double(modelYears))
-  #gasPrediction <- .jcall( gasDCAdriver, "[D", "getPrediction")
-  #gasProduction <- .jcall(gasDCAdriver, "[D", "getProduction") 
-},warning = function(w) {
+  },warning = function(w) {
   DCAeur = 3333333333  ### EUR error
   return(DCAeur)
 }, error = function(e) {
